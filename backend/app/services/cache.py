@@ -1,7 +1,7 @@
 import json
 import logging
 import redis.asyncio as redis
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import os
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ redis_client = redis.Redis.from_url(
     socket_timeout=1,
 )
 
-async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any]:
+async def get_revenue_summary(property_id: str, tenant_id: str) -> Optional[Dict[str, Any]]:
     """
     Fetches revenue summary, utilizing caching to improve performance.
     """
@@ -38,6 +38,9 @@ async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any
     
     # Calculate revenue
     result = await calculate_total_revenue(property_id, tenant_id)
+    if result is None:
+        # Not this tenant's property: nothing to cache (avoids filling Redis with junk ids)
+        return None
     
     # Cache the result for 5 minutes (only reached on success, so errors are never cached)
     try:

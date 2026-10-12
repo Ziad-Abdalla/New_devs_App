@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from app.api.v1 import dashboard
 from app.core.tenant_resolver import TenantResolver
 
-from conftest import User
+from conftest import User, run
 
 
 def test_unknown_user_gets_no_tenant_and_a_403(monkeypatch):
@@ -24,3 +24,17 @@ def test_unknown_user_gets_no_tenant_and_a_403(monkeypatch):
         asyncio.run(dashboard.get_dashboard_summary("prop-001", current_user=User(tenant)))
     assert exc.value.status_code == 403
     assert calls == []  # never reached the data layer
+
+
+@pytest.mark.parametrize(
+    "property_id, tenant",
+    [
+        ("prop-002", "tenant-b"),  # Sunset's property, asked for by Ocean
+        ("prop-999", "tenant-a"),  # does not exist
+    ],
+)
+def test_other_tenants_or_unknown_property_is_404_and_not_cached(property_id, tenant, fake_redis):
+    with pytest.raises(HTTPException) as exc:
+        run(lambda: dashboard.get_dashboard_summary(property_id, current_user=User(tenant)))
+    assert exc.value.status_code == 404
+    assert fake_redis.store == {}

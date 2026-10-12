@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 CENTS = Decimal("0.01")
 
@@ -41,9 +41,12 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
     
     return Decimal('0') # Placeholder for now until DB connection is finalized
 
-async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
+async def calculate_total_revenue(property_id: str, tenant_id: str) -> Optional[Dict[str, Any]]:
     """
     Aggregates revenue from database.
+
+    Returns None when the tenant has no property with this id (unknown id, or
+    another tenant's property), so the endpoint can answer 404.
 
     Errors are not caught here. The old handler swallowed them and returned a
     hard-coded, tenant-blind mock table; a failure must reach the endpoint as an error.
@@ -59,14 +62,18 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             # Use SQLAlchemy text for raw SQL
             from sqlalchemy import text
             
+            # Start from the tenant's own property row: no row means unknown id or another
+            # tenant's property. LEFT JOIN keeps properties with no bookings (0.00).
+            # Join on (id, tenant_id): property ids repeat across tenants.
             query = text("""
                 SELECT 
-                    property_id,
-                    SUM(total_amount) as total_revenue,
-                    COUNT(*) as reservation_count
-                FROM reservations 
-                WHERE property_id = :property_id AND tenant_id = :tenant_id
-                GROUP BY property_id
+                    COALESCE(SUM(r.total_amount), 0) as total_revenue,
+                    COUNT(r.id) as reservation_count
+                FROM properties p
+                LEFT JOIN reservations r
+                    ON r.property_id = p.id AND r.tenant_id = p.tenant_id
+                WHERE p.id = :property_id AND p.tenant_id = :tenant_id
+                GROUP BY p.id
             """)
             
             result = await session.execute(query, {
@@ -75,24 +82,17 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             })
             row = result.fetchone()
             
-            if row:
-                # SUM over NUMERIC is exact in Postgres; round only the final total
-                total_revenue = to_cents(row.total_revenue)
-                return {
-                    "property_id": property_id,
-                    "tenant_id": tenant_id,
-                    "total": str(total_revenue),
-                    "currency": "USD", 
-                    "count": row.reservation_count
-                }
-            else:
-                # No reservations found for this property
-                return {
-                    "property_id": property_id,
-                    "tenant_id": tenant_id,
-                    "total": "0.00",
-                    "currency": "USD",
-                    "count": 0
-                }
+            if row is None:
+                return None
+
+            # SUM over NUMERIC is exact in Postgres; round only the final total
+            total_revenue = to_cents(row.total_revenue)
+            return {
+                "property_id": property_id,
+                "tenant_id": tenant_id,
+                "total": str(total_revenue),
+                "currency": "USD", 
+                "count": row.reservation_count
+            }
     else:
         raise Exception("Database pool not available")

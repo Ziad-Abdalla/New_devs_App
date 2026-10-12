@@ -25,6 +25,11 @@ async def get_dashboard_summary(
         # Nothing was cached, because cache.py only stores successful results.
         logger.exception(f"Revenue summary failed for {property_id} (tenant {tenant_id})")
         raise HTTPException(status_code=503, detail="Revenue data temporarily unavailable")
+
+    if revenue_data is None:
+        # Unknown id or another tenant's property: same answer for both, so a
+        # client can't probe which ids exist in other tenants
+        raise HTTPException(status_code=404, detail="Property not found")
     
     # 'total' is already rounded to cents as a Decimal string (reservations.to_cents).
     # A 2-decimal amount survives the trip through a JSON number unchanged, so the
