@@ -1,10 +1,19 @@
 import json
+import logging
 import redis.asyncio as redis
 from typing import Dict, Any
 import os
 
+logger = logging.getLogger(__name__)
+
 # Initialize Redis client (typically configured centrally).
-redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+# Short timeouts: the cache is an optimisation, so a slow or dead Redis should
+# cost one second, not hang the dashboard.
+redis_client = redis.Redis.from_url(
+    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    socket_connect_timeout=1,
+    socket_timeout=1,
+)
 
 async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any]:
     """
@@ -14,8 +23,13 @@ async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any
     # tenant must be part of the key or tenants read each other's cached totals.
     cache_key = f"revenue:{tenant_id}:{property_id}"
     
-    # Try to get from cache
-    cached = await redis_client.get(cache_key)
+    # Try to get from cache. If Redis is down, fall through to the database
+    # (fail open for an optimisation; tenancy and auth checks fail closed).
+    try:
+        cached = await redis_client.get(cache_key)
+    except Exception as e:
+        logger.warning(f"Redis read failed for {cache_key}, using the database: {e.__class__.__name__}: {e}")
+        cached = None
     if cached:
         return json.loads(cached)
     
@@ -25,7 +39,10 @@ async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any
     # Calculate revenue
     result = await calculate_total_revenue(property_id, tenant_id)
     
-    # Cache the result for 5 minutes
-    await redis_client.setex(cache_key, 300, json.dumps(result))
+    # Cache the result for 5 minutes (only reached on success, so errors are never cached)
+    try:
+        await redis_client.setex(cache_key, 300, json.dumps(result))
+    except Exception as e:
+        logger.warning(f"Redis write failed for {cache_key}: {e.__class__.__name__}: {e}")
     
     return result
