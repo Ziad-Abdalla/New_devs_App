@@ -1,6 +1,16 @@
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, List
+
+CENTS = Decimal("0.01")
+
+def to_cents(amount) -> Decimal:
+    """Round a money amount once, at the end, to cents (half-up, finance convention).
+
+    Amounts are stored as NUMERIC(10,3). Sum the exact values first and call this on
+    the total; rounding each row first drifts (333.333 x 3 -> 999.99 instead of 1000.00).
+    """
+    return Decimal(str(amount)).quantize(CENTS, rounding=ROUND_HALF_UP)
 
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
@@ -66,7 +76,8 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             row = result.fetchone()
             
             if row:
-                total_revenue = Decimal(str(row.total_revenue))
+                # SUM over NUMERIC is exact in Postgres; round only the final total
+                total_revenue = to_cents(row.total_revenue)
                 return {
                     "property_id": property_id,
                     "tenant_id": tenant_id,

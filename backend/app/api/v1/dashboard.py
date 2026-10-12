@@ -23,6 +23,9 @@ async def get_dashboard_summary(
         logger.exception(f"Revenue summary failed for {property_id} (tenant {tenant_id})")
         raise HTTPException(status_code=503, detail="Revenue data temporarily unavailable")
     
+    # 'total' is already rounded to cents as a Decimal string (reservations.to_cents).
+    # A 2-decimal amount survives the trip through a JSON number unchanged, so the
+    # response keeps its existing numeric shape and the frontend only formats it.
     total_revenue_float = float(revenue_data['total'])
     
     return {
