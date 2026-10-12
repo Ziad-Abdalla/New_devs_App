@@ -36,11 +36,10 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
     Aggregates revenue from database.
     """
     try:
-        # Import database pool
-        from app.core.database_pool import DatabasePool
+        # Use the shared module-level pool (one engine per process, not one per request)
+        from app.core.database_pool import db_pool
         
-        # Initialize pool if needed
-        db_pool = DatabasePool()
+        # Initialize pool if needed (no-op after the first call)
         await db_pool.initialize()
         
         if db_pool.session_factory:
