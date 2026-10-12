@@ -25,6 +25,7 @@
 15. Removed the unused WebSocket auth helper: it trusted tokens without checking the signature.
 16. The frontend no longer sends an `X-Simulated-Tenant` header. The tenant only comes from the verified token.
 17. Removed the hard-coded "12%" trend badge (it was a constant, shown as a real trend). Totals use one number format for every browser.
+18. The circuit-breaker reset/configure and fallback cache-clear endpoints had no auth at all. They now need an admin login.
 
 **March rule (my assumption, to confirm with finance):** a booking counts in full in the month of its check-in date, in the property's local time. If finance books revenue night by night, that's their call.
 
