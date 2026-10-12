@@ -38,3 +38,14 @@ def test_other_tenants_or_unknown_property_is_404_and_not_cached(property_id, te
         run(lambda: dashboard.get_dashboard_summary(property_id, current_user=User(tenant)))
     assert exc.value.status_code == 404
     assert fake_redis.store == {}
+
+
+def test_property_list_is_scoped_to_the_tenant():
+    a = run(lambda: dashboard.get_dashboard_properties(current_user=User("tenant-a")))
+    b = run(lambda: dashboard.get_dashboard_properties(current_user=User("tenant-b")))
+    assert [p["name"] for p in a] == ["Beach House Alpha", "City Apartment Downtown", "Country Villa Estate"]
+    assert [p["name"] for p in b] == ["Mountain Lodge Beta", "Lakeside Cottage", "Urban Loft Modern"]
+
+    with pytest.raises(HTTPException) as exc:
+        run(lambda: dashboard.get_dashboard_properties(current_user=User(None)))
+    assert exc.value.status_code == 403

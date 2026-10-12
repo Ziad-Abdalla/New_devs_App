@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Annotated, Dict, Any, Optional
+from typing import Annotated, Dict, Any, List, Optional
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
 
@@ -47,3 +47,27 @@ async def get_dashboard_summary(
         "currency": revenue_data['currency'],
         "reservations_count": revenue_data['count']
     }
+
+@router.get("/dashboard/properties")
+async def get_dashboard_properties(
+    current_user: dict = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """The caller's own properties, for the dashboard property selector."""
+    tenant_id = getattr(current_user, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="User is not assigned to a tenant")
+
+    from sqlalchemy import text
+    from app.core.database_pool import db_pool
+
+    try:
+        await db_pool.initialize()
+        async with db_pool.get_session() as session:
+            result = await session.execute(
+                text("SELECT id, name FROM properties WHERE tenant_id = :tenant_id ORDER BY id"),
+                {"tenant_id": tenant_id},
+            )
+            return [{"id": r.id, "name": r.name} for r in result]
+    except Exception:
+        logger.exception(f"Property list failed (tenant {tenant_id})")
+        raise HTTPException(status_code=503, detail="Property list temporarily unavailable")
