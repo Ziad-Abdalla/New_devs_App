@@ -10,16 +10,13 @@ interface RevenueData {
 
 interface RevenueSummaryProps {
     propertyId?: string;
-    debugTenant?: string; 
     showRaw?: boolean;
 }
 
-export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'prop-001', debugTenant, showRaw }) => {
+export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'prop-001', showRaw }) => {
     const [data, setData] = useState<RevenueData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-
-    const activeTenant = debugTenant || 'candidate';
 
     useEffect(() => {
         // Set when the property changes before this response arrives, so a slow
@@ -30,10 +27,9 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
             setLoading(true);
             setError(''); // a previous failure must not stick to every later property
             try {
-                // Use SecureAPI to handle authentication automatically
-                // We pass the simulatedTenant option which SecureAPI will attach as a header
+                // Use SecureAPI to handle authentication automatically.
+                // The tenant always comes from the login token on the server.
                 const response = await SecureAPI.getDashboardSummary(propertyId, {
-                    simulatedTenant: activeTenant,
                     timestamp: Date.now()
                 });
                 if (!ignore) setData(response);
@@ -47,7 +43,7 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
 
         fetchRevenue();
         return () => { ignore = true; };
-    }, [propertyId, activeTenant]);
+    }, [propertyId]);
 
     if (loading) {
         return (
