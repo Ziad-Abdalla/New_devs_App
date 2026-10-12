@@ -22,8 +22,13 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
     const activeTenant = debugTenant || 'candidate';
 
     useEffect(() => {
+        // Set when the property changes before this response arrives, so a slow
+        // answer for the previous property can't overwrite the current one.
+        let ignore = false;
+
         const fetchRevenue = async () => {
             setLoading(true);
+            setError(''); // a previous failure must not stick to every later property
             try {
                 // Use SecureAPI to handle authentication automatically
                 // We pass the simulatedTenant option which SecureAPI will attach as a header
@@ -31,16 +36,17 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
                     simulatedTenant: activeTenant,
                     timestamp: Date.now()
                 });
-                setData(response);
+                if (!ignore) setData(response);
             } catch (err) {
-                setError('Failed to load revenue data');
+                if (!ignore) setError('Failed to load revenue data');
                 console.error(err);
             } finally {
-                setLoading(false);
+                if (!ignore) setLoading(false);
             }
         };
 
         fetchRevenue();
+        return () => { ignore = true; };
     }, [propertyId, activeTenant]);
 
     if (loading) {
