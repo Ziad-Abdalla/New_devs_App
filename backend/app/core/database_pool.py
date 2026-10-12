@@ -1,5 +1,6 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.engine import make_url
 import logging
 from ..config import settings
 
@@ -44,7 +45,9 @@ class DatabasePool:
             logger.info("✅ Database connection pool initialized")
             
         except Exception as e:
-            logger.error(f"❌ Database pool initialization failed: {e}")
+            # Log the error class and a password-masked URL only: the raw exception or URL
+            # could echo the DSN, password included, into the logs.
+            logger.error(f"❌ Database pool initialization failed ({e.__class__.__name__}) for {_safe_db_url()}")
             self.engine = None
             self.session_factory = None
     
@@ -58,6 +61,13 @@ class DatabasePool:
         if not self.session_factory:
             raise Exception("Database pool not initialized")
         return self.session_factory()
+
+def _safe_db_url() -> str:
+    """DATABASE_URL with the password hidden, for log lines."""
+    try:
+        return make_url(settings.database_url).render_as_string(hide_password=True)
+    except Exception:
+        return "<unparseable DATABASE_URL>"
 
 # Global database pool instance
 db_pool = DatabasePool()
