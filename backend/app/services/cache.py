@@ -15,14 +15,18 @@ redis_client = redis.Redis.from_url(
     socket_timeout=1,
 )
 
-async def get_revenue_summary(property_id: str, tenant_id: str) -> Optional[Dict[str, Any]]:
+async def get_revenue_summary(
+    property_id: str, tenant_id: str, month: Optional[int] = None, year: Optional[int] = None
+) -> Optional[Dict[str, Any]]:
     """
-    Fetches revenue summary, utilizing caching to improve performance.
+    Fetches revenue summary (all time, or one month), utilizing caching to improve performance.
     """
     # Property ids are only unique per tenant (PK is (id, tenant_id)), so the
     # tenant must be part of the key or tenants read each other's cached totals.
     cache_key = f"revenue:{tenant_id}:{property_id}"
-    
+    if month is not None:
+        cache_key += f":{year}-{month:02d}"
+
     # Try to get from cache. If Redis is down, fall through to the database
     # (fail open for an optimisation; tenancy and auth checks fail closed).
     try:
@@ -34,10 +38,13 @@ async def get_revenue_summary(property_id: str, tenant_id: str) -> Optional[Dict
         return json.loads(cached)
     
     # Revenue calculation is delegated to the reservation service.
-    from app.services.reservations import calculate_total_revenue
-    
+    from app.services.reservations import calculate_total_revenue, calculate_monthly_revenue
+
     # Calculate revenue
-    result = await calculate_total_revenue(property_id, tenant_id)
+    if month is not None:
+        result = await calculate_monthly_revenue(property_id, tenant_id, month, year)
+    else:
+        result = await calculate_total_revenue(property_id, tenant_id)
     if result is None:
         # Not this tenant's property: nothing to cache (avoids filling Redis with junk ids)
         return None

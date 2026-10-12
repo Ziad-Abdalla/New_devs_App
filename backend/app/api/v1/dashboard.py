@@ -1,6 +1,6 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Annotated, Dict, Any, Optional
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
 
@@ -10,16 +10,21 @@ logger = logging.getLogger(__name__)
 @router.get("/dashboard/summary")
 async def get_dashboard_summary(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    month: Annotated[Optional[int], Query(ge=1, le=12)] = None,
+    year: Annotated[Optional[int], Query(ge=2000, le=2100)] = None,
 ) -> Dict[str, Any]:
-    
+    # Optional month view: both or neither. Without them the summary is all-time, as before.
+    if (month is None) != (year is None):
+        raise HTTPException(status_code=400, detail="Pass both month and year, or neither")
+
     tenant_id = getattr(current_user, "tenant_id", None)
     if not tenant_id:
         # No tenant means no data, never a guessed/default tenant
         raise HTTPException(status_code=403, detail="User is not assigned to a tenant")
     
     try:
-        revenue_data = await get_revenue_summary(property_id, tenant_id)
+        revenue_data = await get_revenue_summary(property_id, tenant_id, month, year)
     except Exception:
         # Log the real cause, then fail loudly: no made-up numbers on a finance screen.
         # Nothing was cached, because cache.py only stores successful results.
