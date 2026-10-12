@@ -97,6 +97,7 @@ const Dashboard: React.FC = () => {
             {selectedProperty && (
               <RevenueSummary
                 propertyId={selectedProperty}
+                propertyName={properties?.find((p) => p.id === selectedProperty)?.name}
                 month={month ? Number(month) : undefined}
                 year={month ? year : undefined}
               />

@@ -10,6 +10,7 @@ interface RevenueData {
 
 interface RevenueSummaryProps {
     propertyId?: string;
+    propertyName?: string; // both clients have a prop-001, so the id alone is ambiguous
     month?: number; // 1-12; with year, shows that month instead of all time
     year?: number;
     showRaw?: boolean;
@@ -18,7 +19,7 @@ interface RevenueSummaryProps {
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
     'August', 'September', 'October', 'November', 'December'];
 
-export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'prop-001', month, year, showRaw }) => {
+export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'prop-001', propertyName, month, year, showRaw }) => {
     const [data, setData] = useState<RevenueData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -99,8 +100,11 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
 
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                     <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Property ID</p>
-                        <p className="text-sm font-semibold text-gray-700 font-mono mt-1">{data.property_id}</p>
+                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Property</p>
+                        <p className="text-sm font-semibold text-gray-700 mt-1">
+                            {propertyName && <span>{propertyName} · </span>}
+                            <span className="font-mono">{data.property_id}</span>
+                        </p>
                     </div>
                     <div>
                         <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Reservations</p>
