@@ -127,9 +127,13 @@ async def authenticate_request(
                 user = MockUser(payload)
                 
             except JWTError:
-                # If custom JWT fails, try Supabase auth
-                response = supabase.auth.get_user(token)
-                user = response.user
+                # A token that fails the signature/expiry/audience check is rejected here.
+                # It used to fall through to the challenge-mode mock client, which accepted
+                # the literal "mock-token-123" and decoded JWTs without checking the signature.
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or missing token",
+                )
                 
         except Exception as e:
             # Malformed or invalid token (e.g., wrong number of segments)
