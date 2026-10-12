@@ -26,6 +26,12 @@ class DatabasePool:
                 max_overflow=30,  # Additional connections when needed
                 pool_pre_ping=True,  # Validate connections
                 pool_recycle=3600,  # Recycle connections every hour
+                # Fail fast instead of hanging when the DB is stuck: the request becomes a 503.
+                pool_timeout=5,  # seconds to wait for a free pooled connection
+                connect_args={
+                    "timeout": 5,  # asyncpg: seconds to establish a connection
+                    "command_timeout": 5,  # asyncpg: seconds per query (dashboard queries take ms)
+                },
                 echo=False  # Set to True for SQL debugging
             )
             
