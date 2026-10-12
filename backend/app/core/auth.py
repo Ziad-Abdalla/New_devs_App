@@ -258,6 +258,13 @@ async def authenticate_request(
 
         # Use TenantResolver for comprehensive tenant resolution
         tenant_id = await TenantResolver.resolve_tenant_id(token=token, user_id=user.id, user_email=user.email)
+        if not tenant_id:
+            # Fail closed for every endpoint: some legacy endpoints only add their
+            # tenant filter `if user.tenant_id`, so a tenant-less user must stop here.
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not assigned to a tenant",
+            )
 
         # If we found a tenant_id and it's not in the user's metadata, update it for next time
         current_tenant_in_metadata = None

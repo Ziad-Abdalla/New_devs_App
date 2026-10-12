@@ -69,7 +69,7 @@ class TenantResolver:
         return None
 
     @staticmethod
-    async def resolve_tenant_id(user_id: str, user_email: str, token: Optional[str] = None) -> str:
+    async def resolve_tenant_id(user_id: str, user_email: str, token: Optional[str] = None) -> Optional[str]:
         """
         Resolve tenant ID for a user.
         
@@ -78,7 +78,7 @@ class TenantResolver:
             user_email: User email
             
         Returns:
-            Tenant ID
+            Tenant ID, or None if the user is not mapped to a tenant
         """
         # Fallback mapping by known user email.
         if user_email == "sunset@propertyflow.com":
@@ -88,8 +88,10 @@ class TenantResolver:
         if user_email == "candidate@propertyflow.com":
             return "tenant-a"
             
-        # Default fallback
-        return "tenant-a"
+        # Unknown user: fail closed. Defaulting to a real tenant would hand
+        # Sunset's data to anyone with a valid token for an unmapped email.
+        logger.warning(f"No tenant mapping for user {user_email}; denying tenant access")
+        return None
 
     @staticmethod
     async def update_user_tenant_metadata(user_id: str, tenant_id: str) -> None:

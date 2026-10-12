@@ -43,3 +43,10 @@ def test_unverified_tokens_are_rejected(token):
 def test_properly_signed_client_token_still_works():
     user = authenticate(make_token("ocean@propertyflow.com", settings.secret_key))
     assert user.tenant_id == "tenant-b"
+
+
+def test_signed_token_for_unmapped_user_is_forbidden():
+    # Valid signature, but the email maps to no tenant: stop at auth, for every endpoint
+    with pytest.raises(HTTPException) as exc:
+        authenticate(make_token("stranger@example.com", settings.secret_key))
+    assert exc.value.status_code == 403
