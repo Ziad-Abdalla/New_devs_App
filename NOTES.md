@@ -18,10 +18,13 @@
 8. Login: only the two client accounts get tokens. Before, `candidate@propertyflow.com` with any password got a token for Sunset's tenant.
 9. Unknown users get no tenant and a 403, enforced in auth for every endpoint.
 10. Another tenant's property, or an unknown id, gets a 404, and nothing is cached.
-11. Month view: `?month=3&year=2024` on the summary endpoint. The month bounds are converted into the property's timezone in SQL.
+11. Month view: `?month=3&year=2024` on the summary endpoint. The month bounds are converted into the property's timezone in SQL. The dashboard has a Period picker for it (default: All time), and the card says which period it shows.
 12. Property dropdown comes from a new tenant-scoped `/api/v1/dashboard/properties`. The frontend's existing `getProperties()` calls `/api/v1/properties`, which this backend doesn't have.
 13. RevenueSummary ignores stale responses when you switch property, and clears old errors.
 14. Logs never include the DB URL/password or token text.
+15. Removed the unused WebSocket auth helper: it trusted tokens without checking the signature.
+16. The frontend no longer sends an `X-Simulated-Tenant` header. The tenant only comes from the verified token.
+17. Removed the hard-coded "12%" trend badge (it was a constant, shown as a real trend). Totals use one number format for every browser.
 
 **March rule (my assumption, to confirm with finance):** a booking counts in full in the month of its check-in date, in the property's local time. If finance books revenue night by night, that's their call.
 
@@ -55,5 +58,3 @@ The tests use the seeded Postgres (read-only) and a fake Redis. Run against the 
 - Hard-coded `SECRET_KEY`; the challenge passwords are compared in plain text.
 - Currency is hard-coded to "USD".
 - No cache invalidation when bookings change: TTL only, and there's no write path in this repo.
-- `X-Simulated-Tenant` header is sent by the frontend but nothing reads it. A client-sent tenant must never be trusted.
-- The unused WebSocket auth helper still calls the mock client.
