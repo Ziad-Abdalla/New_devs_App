@@ -1452,8 +1452,14 @@ export class SecureAPIClient {
   /**
    * Get dashboard summary with optional simulation header
    */
-  async getDashboardSummary(propertyId: string, options?: { timestamp?: number }) {
+  async getDashboardSummary(propertyId: string, options?: { timestamp?: number, month?: number, year?: number }) {
     const queryParams = new URLSearchParams({ property_id: propertyId });
+    // Month view: the backend needs both or neither, and counts each booking in the
+    // month of its check-in in the property's own time zone.
+    if (options?.month && options?.year) {
+      queryParams.append('month', options.month.toString());
+      queryParams.append('year', options.year.toString());
+    }
     if (options?.timestamp) {
       queryParams.append('_t', options.timestamp.toString());
     }

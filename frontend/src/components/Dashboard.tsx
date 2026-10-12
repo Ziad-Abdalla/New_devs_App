@@ -8,6 +8,13 @@ const Dashboard: React.FC = () => {
   const [properties, setProperties] = useState<{ id: string; name: string }[] | null>(null);
   const [selectedProperty, setSelectedProperty] = useState('');
   const [listError, setListError] = useState('');
+  // '' = all time. Otherwise a month (1-12) of the chosen year.
+  const [month, setMonth] = useState('');
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const years = [currentYear, currentYear - 1, currentYear - 2];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December'];
 
   useEffect(() => {
     SecureAPI.getDashboardProperties()
@@ -36,6 +43,35 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
               
+              <div className="flex flex-col sm:flex-row gap-4">
+              {/* Period Selector */}
+              <div className="flex flex-col sm:items-end">
+                <label className="text-xs font-medium text-gray-700 mb-1">Period</label>
+                <div className="flex gap-2">
+                  <select
+                    value={month}
+                    onChange={(e) => setMonth(e.target.value)}
+                    className="block px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">All time</option>
+                    {months.map((name, i) => (
+                      <option key={name} value={String(i + 1)}>{name}</option>
+                    ))}
+                  </select>
+                  {month && (
+                    <select
+                      value={year}
+                      onChange={(e) => setYear(Number(e.target.value))}
+                      className="block px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    >
+                      {years.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
               {/* Property Selector */}
               <div className="flex flex-col sm:items-end">
                 <label className="text-xs font-medium text-gray-700 mb-1">Select Property</label>
@@ -51,13 +87,20 @@ const Dashboard: React.FC = () => {
                   ))}
                 </select>
               </div>
+              </div>
             </div>
           </div>
 
           <div className="space-y-6">
             {listError && <div className="p-4 text-red-500 bg-red-50 rounded-lg">{listError}</div>}
             {properties?.length === 0 && <p className="text-sm text-gray-600">No properties yet.</p>}
-            {selectedProperty && <RevenueSummary propertyId={selectedProperty} />}
+            {selectedProperty && (
+              <RevenueSummary
+                propertyId={selectedProperty}
+                month={month ? Number(month) : undefined}
+                year={month ? year : undefined}
+              />
+            )}
           </div>
         </div>
       </div>
