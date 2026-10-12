@@ -15,12 +15,13 @@ import os
 import time
 
 from app.core.redis_client import redis_client
-from app.core.auth import authenticate_request, AuthenticatedUser
+from app.core.auth import authenticate_request, AuthenticatedUser, ADMIN_EMAILS
 
 
 def require_admin(user: AuthenticatedUser = Depends(authenticate_request)) -> AuthenticatedUser:
-    """Operational endpoints change shared state, so only admins may call them."""
-    if not user.is_admin:
+    """Operational endpoints change state shared by every tenant, so only platform
+    admins may call them. A tenant's own admin role is not enough."""
+    if user.email not in ADMIN_EMAILS:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 from .api.v1 import (
